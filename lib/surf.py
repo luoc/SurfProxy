@@ -24,6 +24,7 @@ class Surf():
         self.logs = {'success':[], 'failed':[]}
         self.url_queue = Queue.Queue()
         self.total_url = None
+        self.threads = []
         self.fname = 'WTestPlatform.exe-' + strftime('%Y-%m-%d-%H-%M-%S.log')
         self._getUrl()
 
@@ -77,6 +78,7 @@ class Surf():
         for i in xrange(25):
             t = threading.Thread(target=self.Requester)
             t.daemon = True
+            self.threads.append(t)
             t.start()
         self.url_queue.join()
         with open(self.fname, 'a') as f:

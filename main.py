@@ -70,6 +70,13 @@ class SurfWin(QtGui.QMainWindow):
             self.ui.lineEdit_user.setText(self.user)
             self.ui.lineEdit_pwd.setText(self.pwd)
 
+    def WidgetEnabled(self, status):
+        self.ui.btn_start.setEnabled(status)
+        self.ui.btn_choose.setEnabled(status)
+        self.ui.lineEdit_user.setEnabled(status)
+        self.ui.lineEdit_pwd.setEnabled(status)
+        self.ui.lineEdit_urlpath.setEnabled(status)
+
     def chooseUrlFile(self):
         fd = QtGui.QFileDialog(self)
         self.fpath = unicode(fd.getOpenFileName())
@@ -83,6 +90,7 @@ class SurfWin(QtGui.QMainWindow):
             self.ui.btn_start.setEnabled(False)
 
     def surf(self):
+        self.WidgetEnabled(False)
         self.user = str(self.ui.lineEdit_user.text())
         self.pwd = str(self.ui.lineEdit_pwd.text())
         self.surfs = surf.Surf(self.fpath, '119.254.227.62', self.user, self.pwd)
@@ -91,11 +99,13 @@ class SurfWin(QtGui.QMainWindow):
         self.threadui.start()
         self.threadsurfs = QThreadSurf(self)
         self.threadsurfs.start()
+        self.saveConfig()
 
     def QRefreshUI(self, step):
         self.ui.progressBar.setValue(step)
 
     def QpopSuccess(self):
+        self.WidgetEnabled(True)
         msg = QtGui.QMessageBox(self)
         msg.setText(_translate('拨测结束，请查看日志'))
         msg.setWindowTitle(_translate('代理拨测专用'))
@@ -106,7 +116,7 @@ class SurfWin(QtGui.QMainWindow):
         if response == 'OK':
             os.startfile(self.surfs.fname)
 
-    def __del__(self):
+    def saveConfig(self):
         if not self.cfg:
             self.cfg = ConfigParser.ConfigParser()
             self.cfg.add_section('Account')

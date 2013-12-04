@@ -143,7 +143,7 @@ class Ui_Form(object):
         Form.setTabOrder(self.btn_start, self.lineEdit_urlpath)
 
     def retranslateUi(self, Form):
-        Form.setWindowTitle(_translate("Form", "代理拨测专用", None))
+        Form.setWindowTitle(_translate("Form", "CATR代理拨测专用", None))
         self.groupBox_proxy.setTitle(_translate("Form", "代理服务器登陆", None))
         self.btn_start.setText(_translate("Form", "开始拨测", None))
         self.label_user.setText(_translate("Form", "用户名：", None))
@@ -151,5 +151,5 @@ class Ui_Form(object):
         self.groupBox_url.setTitle(_translate("Form", "拨测列表", None))
         self.btn_choose.setText(_translate("Form", "选  择..", None))
         self.label_url.setText(_translate("Form", "URL地址：", None))
-        self.groupBox_status.setTitle(_translate("Form", "当前状态", None))
+        self.groupBox_status.setTitle(_translate("Form", "拨测进度", None))
 
