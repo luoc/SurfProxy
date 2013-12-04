@@ -12,23 +12,53 @@ from UI import Ui_Form
 def _translate(text):
     return unicode(text, 'gb2312', 'ignore')
 
+class QthreadUI(QtCore.QThread):
+    signal = QtCore.pyqtSignal(int)
+    finish =  QtCore.pyqtSignal()
+    def __init__(self, UI):
+        QtCore.QThread.__init__(self)
+        self.UI = UI
+
+    def run(self):
+        total_url = self.UI.surfs.total_url
+
+        while True:
+            success = len(self.UI.surfs.logs['success'])
+            fails = len(self.UI.surfs.logs['failed'])
+            self.signal.emit(success+fails)
+            QtCore.QThread.msleep(50)
+            if total_url == success + fails:
+                break
+        self.finish.emit()
+
+class QThreadSurf(QtCore.QThread):
+    def __init__(self, UI):
+        QtCore.QThread.__init__(self)
+        self.UI = UI
+
+    def run(self):
+        self.UI.surfs.start()
+
+
+
 class SurfWin(QtGui.QMainWindow):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         self.ui = Ui_Form()
         self.ui.setupUi(self)
-        #TODO: absolute path
         self._ini = 'surf.ini'
         self.cfg = None
         self.user = None
         self.pwd = None
-        self.srf = None
+        self.surfs = None
         self.fpath = None
-        self.step = 0
-        self.timer = QtCore.QBasicTimer()
         QtCore.QObject.connect(self.ui.btn_choose, QtCore.SIGNAL("clicked()"), self.chooseUrlFile)
         QtCore.QObject.connect(self.ui.btn_start, QtCore.SIGNAL("clicked()"), self.surf)
         QtCore.QObject.connect(self.ui.lineEdit_user, QtCore.SIGNAL("editingFinished()"), self.setBtn)
+        #create thread to refresh ui(progressbar)
+        self.threadui = QthreadUI(self)
+        self.threadui.signal.connect(self.QRefreshUI)
+        self.threadui.finish.connect(self.QpopSuccess)
         self.getCfgInfo()
 
     def getCfgInfo(self): #get user name and password from surf.ini if exists.
@@ -55,43 +85,17 @@ class SurfWin(QtGui.QMainWindow):
     def surf(self):
         self.user = str(self.ui.lineEdit_user.text())
         self.pwd = str(self.ui.lineEdit_pwd.text())
-        self.srf = surf.Surf(self.fpath, '119.254.227.62', self.user, self.pwd)
-        self.ui.progressBar.setMaximum(self.srf.total_url)
+        self.surfs = surf.Surf(self.fpath, '119.254.227.62', self.user, self.pwd)
+        self.ui.progressBar.setMaximum(self.surfs.total_url)
         self.ui.progressBar.reset()
-        t = self.refreshThread(self)
-        t.start(QtCore.QThread.HighPriority)
-        self.srf.start()
-        self.popSuccess()
+        self.threadui.start()
+        self.threadsurfs = QThreadSurf(self)
+        self.threadsurfs.start()
 
-    class refreshThread(QtCore.QThread):
-        def __init__(self, main):
-            QtCore.QThread.__init__(self)
-            self.main = main
-        def run(self):
-            t = self.main.srf.total_url
-            while True:
-                s = len(self.main.srf.logs['success'])
-                f = len(self.main.srf.logs['failed'])
-                self.main.ui.progressBar.setValue(s+f)
-                QtCore.QThread.msleep(70)
-                if t >= s+f:
-                    break
+    def QRefreshUI(self, step):
+        self.ui.progressBar.setValue(step)
 
-    def timerEvent(self, event):
-        t = self.srf.total_url
-        s = len(self.srf.logs['success'])
-        f = len(self.srf.logs['failed'])
-        self.ui.progressBar.setValue(s+f)
-        if t >= s+f:
-            self.timer.stop()
-        #while True:
-        #    s = len(self.srf.logs['success'])
-        #    f = len(self.srf.logs['failed'])
-        #    self.ui.progressBar.setValue(s+f)
-        #    if t >= s+f:
-        #        break
-
-    def popSuccess(self):
+    def QpopSuccess(self):
         msg = QtGui.QMessageBox(self)
         msg.setText(_translate('拨测结束，请查看日志'))
         msg.setWindowTitle(_translate('代理拨测专用'))
@@ -100,7 +104,7 @@ class SurfWin(QtGui.QMainWindow):
         msg.exec_()
         response = msg.clickedButton().text()
         if response == 'OK':
-            os.startfile(self.srf.fname)
+            os.startfile(self.surfs.fname)
 
     def __del__(self):
         if not self.cfg:
