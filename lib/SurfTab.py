@@ -1,13 +1,12 @@
 #coding:GB2312
 __author__ = 'LuoCheng'
-import sys
-sys.path.append('lib')
+
 import surf
 import ConfigParser
 import os
-import threading
+
 from PyQt4 import QtCore, QtGui
-from UI import Ui_Form
+from SurfTabUI import Ui_Form
 
 def _translate(text):
     return unicode(text, 'gb2312', 'ignore')
@@ -41,7 +40,7 @@ class QThreadSurf(QtCore.QThread):
 
 
 
-class SurfWin(QtGui.QMainWindow):
+class SurfWin(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         self.ui = Ui_Form()
@@ -50,11 +49,13 @@ class SurfWin(QtGui.QMainWindow):
         self.cfg = None
         self.user = None
         self.pwd = None
+        self.proxy = False
         self.surfs = None
         self.fpath = None
         QtCore.QObject.connect(self.ui.btn_choose, QtCore.SIGNAL("clicked()"), self.chooseUrlFile)
         QtCore.QObject.connect(self.ui.btn_start, QtCore.SIGNAL("clicked()"), self.surf)
-        QtCore.QObject.connect(self.ui.lineEdit_user, QtCore.SIGNAL("editingFinished()"), self.setBtn)
+        QtCore.QObject.connect(self.ui.checkBox_proxy, QtCore.SIGNAL("clicked()"), self.setProxyEdit)
+        QtCore.QObject.connect(self.ui.lineEdit_user, QtCore.SIGNAL("editingFinished()"), self.setStartBtn)
         #create thread to refresh ui(progressbar)
         self.threadui = QthreadUI(self)
         self.threadui.signal.connect(self.QRefreshUI)
@@ -70,30 +71,40 @@ class SurfWin(QtGui.QMainWindow):
             self.ui.lineEdit_user.setText(self.user)
             self.ui.lineEdit_pwd.setText(self.pwd)
 
-    def WidgetEnabled(self, status):
+    def WidgetAllEnabled(self, status):
         self.ui.btn_start.setEnabled(status)
         self.ui.btn_choose.setEnabled(status)
-        self.ui.lineEdit_user.setEnabled(status)
-        self.ui.lineEdit_pwd.setEnabled(status)
+        self.ui.lineEdit_user.setEnabled(status and self.proxy)
+        self.ui.lineEdit_pwd.setEnabled(status and self.proxy)
         self.ui.lineEdit_urlpath.setEnabled(status)
 
     def chooseUrlFile(self):
         fd = QtGui.QFileDialog(self)
         self.fpath = unicode(fd.getOpenFileName())
         self.ui.lineEdit_urlpath.setText(self.fpath)
-        self.setBtn()
+        self.setStartBtn()
 
-    def setBtn(self):
-        if self.fpath and self.ui.lineEdit_user.text().length():
-            self.ui.btn_start.setEnabled(True)
+    def setStartBtn(self):
+        if self.fpath:
+            if not self.proxy or self.ui.lineEdit_user.text().length():
+                self.ui.btn_start.setEnabled(True)
+            else:
+                self.ui.btn_start.setEnabled(False)
         else:
             self.ui.btn_start.setEnabled(False)
 
+    def setProxyEdit(self):
+        self.proxy = self.ui.checkBox_proxy.isChecked()
+        self.ui.lineEdit_user.setEnabled(self.proxy)
+        self.ui.lineEdit_pwd.setEnabled(self.proxy)
+        self.setStartBtn()
+
     def surf(self):
-        self.WidgetEnabled(False)
+        self.WidgetAllEnabled(False)
         self.user = str(self.ui.lineEdit_user.text())
         self.pwd = str(self.ui.lineEdit_pwd.text())
-        self.surfs = surf.Surf(self.fpath, '119.254.227.62', self.user, self.pwd)
+        self.proxy = self.ui.checkBox_proxy.isChecked()
+        self.surfs = surf.Surf(self.fpath, self.proxy, '119.254.227.62', self.user, self.pwd)
         self.ui.progressBar.setMaximum(self.surfs.total_url)
         self.ui.progressBar.reset()
         self.threadui.start()
@@ -105,7 +116,7 @@ class SurfWin(QtGui.QMainWindow):
         self.ui.progressBar.setValue(step)
 
     def QpopSuccess(self):
-        self.WidgetEnabled(True)
+        self.WidgetAllEnabled(True)
         msg = QtGui.QMessageBox(self)
         msg.setText(_translate('拨测结束，请查看日志'))
         msg.setWindowTitle(_translate('代理拨测专用'))
@@ -114,7 +125,7 @@ class SurfWin(QtGui.QMainWindow):
         msg.exec_()
         response = msg.clickedButton().text()
         if response == 'OK':
-            os.startfile(self.surfs.fname)
+            os.startfile(self.surfs.logname)
 
     def saveConfig(self):
         if not self.cfg:
